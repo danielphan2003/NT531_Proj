@@ -1,0 +1,38 @@
+version:  '3.5'
+
+services:
+  microbin:
+    image:  danielszabo99/microbin:latest
+    container_name: microbin
+    restart:  unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - MICROBIN_ADMIN_USERNAME=admin
+      - MICROBIN_ADMIN_PASSWORD=UIT@nt531
+      - MICROBIN_HIGHLIGHTSYNTAX=true
+      - MICROBIN_HASH_IDS=true
+      - MICROBIN_EDITABLE=true
+      - MICROBIN_PRIVATE=false
+      - MICROBIN_HIDE_FOOTER=true
+      - MICROBIN_HELP=true
+      - MICROBIN_HIDE_HEADER=true
+      - MICROBIN_HIDE_LOGO=false
+      - MICROBIN_NO_ETERNAL_PASTA=true
+      - MICROBIN_NO_FILE_UPLOAD=false
+      - MICROBIN_NO_LISTING=true
+      - MICROBIN_THREADS=1
+      - MICROBIN_TITLE=nt531-microbin
+      - MICROBIN_QR=true
+    ports:
+      - 8080:8080
+    volumes:
+      - ./microbin-data:/app/pasta_data
+
+  nginx:
+    image:  nginx:latest
+    container_name: nginx_container
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    network_mode:host
