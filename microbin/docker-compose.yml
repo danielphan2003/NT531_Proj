@@ -1,6 +1,34 @@
 version:  '3.5'
 
 services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.25
+    container_name: es-container
+    environment:
+      - discovery.type=single-node
+    networks:
+      - elastic-network
+    ports:
+      - "9200:9200"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.25
+    container_name: ls-container
+    ports:
+      - "5044:5044"
+    volumes:
+      - "./logstash/config:/usr/share/logstash/config"
+
+  kibana:
+    image: docker.elasticsearch.co/kibana/kibana:7.17.25
+    container_name: kb-container
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es-container:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
   microbin:
     image:  danielszabo99/microbin:latest
     container_name: microbin
@@ -27,3 +55,19 @@ services:
       - 8080:8080
     volumes:
       - ./microbin-data:/app/pasta_data
+  
+  sniper:
+    build:
+      context: ./sniper
+      dockerfile: Dockerfile
+    container_name: sniper
+    depends_on:
+      - microbin
+    entrypoint: ["sh", "-c", "sniper -u http://microbin:8080 -n 1000 -c 100 | python3 /app/convertToJson.py > /output/results.json"]
+    volumes:
+      - ./output:/output
+      - ./convertToJson.py:/app/convertToJson.py
+
+networks:
+  elastic-network:
+    driver: bridge
