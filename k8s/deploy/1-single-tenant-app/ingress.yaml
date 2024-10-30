@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: microbin-ingress
-  namespace: kube-system
+  namespace: default
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/configuration-snippet: |
@@ -13,7 +13,8 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: microbin.single
+      http:
         paths:
           - path: /
             pathType: Prefix

@@ -47,7 +47,7 @@ COPY --from=docker.io/flyio/litefs:0.5.11 \
     /usr/local/bin/litefs \
     /usr/local/bin/litefs
 
-ADD litefs.static-lease.yml /etc/litefs.yml
+ADD litefs/litefs.static-lease.yml /etc/litefs.yml
 
 # copy built executable
 COPY --from=build \
