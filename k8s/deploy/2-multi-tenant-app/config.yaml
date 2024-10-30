@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microbin-config
+  namespace: default
+data:
+  TZ: "Asia/Ho_Chi_Minh"
+  MICROBIN_ADMIN_USERNAME: "admin"
+  MICROBIN_ADMIN_PASSWORD: "UIT@nt531"
+  MICROBIN_EDITABLE: "true"
+  MICROBIN_ENABLE_BURN_AFTER: "true"
+  MICROBIN_HASH_IDS: "true"
+  MICROBIN_HELP: "true"
+  MICROBIN_HIDE_FOOTER: "true"
+  MICROBIN_HIDE_HEADER: "true"
+  MICROBIN_HIDE_LOGO: "false"
+  MICROBIN_HIGHLIGHTSYNTAX: "true"
+  MICROBIN_NO_ETERNAL_PASTA: "true"
+  MICROBIN_NO_FILE_UPLOAD: "false"
+  MICROBIN_NO_LISTING: "false"
+  MICROBIN_PORT: "8080"
+  MICROBIN_PRIVATE: "false"
+  MICROBIN_QR: "true"
+  MICROBIN_SHOW_READ_STATS: "true"
+  MICROBIN_SQLITE_DB: "/litefs/database.sqlite"
+  MICROBIN_THREADS: "1"
+  MICROBIN_TITLE: "nt531-microbin-multi-tenant"

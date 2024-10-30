@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microbin-config
+  namespace: default
+data:
+  TZ: "Asia/Ho_Chi_Minh"
+  MICROBIN_ADMIN_USERNAME: "admin"
+  MICROBIN_ADMIN_PASSWORD: "UIT@nt531"
+  MICROBIN_EDITABLE: "true"
+  MICROBIN_ENABLE_BURN_AFTER: "true"
+  MICROBIN_HASH_IDS: "true"
+  MICROBIN_HELP: "true"
+  MICROBIN_HIDE_FOOTER: "true"
+  MICROBIN_HIDE_HEADER: "true"
+  MICROBIN_HIDE_LOGO: "false"
+  MICROBIN_HIGHLIGHTSYNTAX: "true"
+  MICROBIN_NO_ETERNAL_PASTA: "true"
+  MICROBIN_NO_FILE_UPLOAD: "false"
+  MICROBIN_NO_LISTING: "false"
+  MICROBIN_PORT: "8080"
+  MICROBIN_PRIVATE: "false"
+  MICROBIN_QR: "true"
+  MICROBIN_SHOW_READ_STATS: "true"
+  MICROBIN_SQLITE_DB: "/litefs/database.sqlite"
+  MICROBIN_THREADS: "1"
+  MICROBIN_TITLE: "nt531-microbin-single-tenant"
+  litefs.yml: |
+    # note: there should be one template for this, which you can update as necessary.
+    # note: had to leave the getting started guide and go to the lease management section bc not using fly
+    # note: lease.hostname and lease.advertise-url are not clear
+    # note: we should have an example docker-compose setup with everything working both with consul
+    # and static leases
+    # This directory is where your application will access the database.
+    fuse:
+      dir: "/litefs"
+
+    # This directory is where LiteFS will store internal data.
+    # You must place this directory on a persistent volume.
+    data:
+      dir: "/var/lib/litefs"
+
+    # The lease section defines how LiteFS creates a cluster and
+    # implements leader election. For dynamic clusters, use the
+    # "consul". This allows the primary to change automatically when
+    # the current primary goes down. For a simpler setup, use
+    # "static" which assigns a single node to be the primary and does
+    # not failover.
+    lease:
+      # Required. Must be either "consul" or "static".
+      type: "static"
+
+      # Required. The URL for this node's LiteFS API.
+      # Should match HTTP port.
+      advertise-url: $PRIMARY_URL
+
+      # Specifies whether the node can become the primary. If using
+      # "static" leasing, this should be set to true on the primary
+      # and false on the replicas.
+      candidate: $IS_PRIMARY
+
+    http:
+      # Specifies the bind address of the HTTP API server.
+      addr: "0.0.0.0:20202"
+
+    exec:
+      - cmd: "microbin"

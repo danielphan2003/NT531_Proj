@@ -1,0 +1,192 @@
+diff --git a/src/args.rs b/src/args.rs
+index 64dccb5..bf86997 100644
+--- a/src/args.rs
++++ b/src/args.rs
+@@ -146,6 +146,9 @@ pub struct Args {
+         default_value_t = 2048
+     )]
+     pub max_file_size_unencrypted_mb: usize,
++
++    #[clap(long, env = "MICROBIN_SQLITE_DB")]
++    pub sqlite_db: Option<String>,
+ }
+ 
+ impl Args {
+@@ -211,6 +214,7 @@ impl Args {
+             max_file_size_encrypted_mb: self.max_file_size_encrypted_mb,
+             max_file_size_unencrypted_mb: self.max_file_size_unencrypted_mb,
+             disable_update_checking: self.disable_update_checking,
++            sqlite_db: self.sqlite_db,
+         }
+     }
+ }
+diff --git a/src/endpoints/health.rs b/src/endpoints/health.rs
+new file mode 100644
+index 0000000..998d74e
+--- /dev/null
++++ b/src/endpoints/health.rs
+@@ -0,0 +1,6 @@
++use actix_web::{get, HttpResponse};
++
++#[get("/healthz")]
++pub async fn health() -> HttpResponse {
++    return HttpResponse::Ok().content_type("text/html").body("OK");
++}
+diff --git a/src/endpoints/list.rs b/src/endpoints/list.rs
+index 8d7f3a6..6e6176f 100644
+--- a/src/endpoints/list.rs
++++ b/src/endpoints/list.rs
+@@ -3,6 +3,7 @@ use askama::Template;
+ 
+ use crate::args::{Args, ARGS};
+ use crate::pasta::Pasta;
++use crate::util::db;
+ use crate::util::misc::remove_expired;
+ use crate::AppState;
+ 
+diff --git a/src/main.rs b/src/main.rs
+index 411b41a..87d435e 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -2,7 +2,7 @@ extern crate core;
+ 
+ use crate::args::ARGS;
+ use crate::endpoints::{
+-    admin, auth_admin, auth_upload, create, edit, errors, file, guide, list,
++    admin, auth_admin, auth_upload, create, edit, errors, file, guide, health, list,
+     pasta as pasta_endpoint, qr, remove, static_resources,
+ };
+ use crate::pasta::Pasta;
+@@ -17,6 +17,7 @@ use log::LevelFilter;
+ use std::fs;
+ use std::io::Write;
+ use std::sync::Mutex;
++use std::thread::spawn;
+ 
+ pub mod args;
+ pub mod pasta;
+@@ -29,11 +30,11 @@ pub mod util {
+     #[cfg(feature = "default")]
+     pub mod db_sqlite;
+     pub mod hashids;
++    pub mod http_client;
+     pub mod misc;
+     pub mod syntaxhighlighter;
+     pub mod telemetry;
+     pub mod version;
+-    pub mod http_client;
+ }
+ 
+ pub mod endpoints {
+@@ -45,6 +46,7 @@ pub mod endpoints {
+     pub mod errors;
+     pub mod file;
+     pub mod guide;
++    pub mod health;
+     pub mod list;
+     pub mod pasta;
+     pub mod qr;
+@@ -100,10 +102,20 @@ async fn main() -> std::io::Result<()> {
+         start_telemetry_thread();
+     }
+ 
++    spawn({
++        let data = data.clone();
++        move || loop {
++            std::thread::sleep(std::time::Duration::from_secs(5));
++            let mut pastas = data.pastas.lock().unwrap();
++            *pastas = read_all();
++        }
++    });
++
+     HttpServer::new(move || {
+         App::new()
+             .app_data(data.clone())
+             .wrap(middleware::NormalizePath::trim())
++            .service(health::health)
+             .service(create::index)
+             .service(guide::guide)
+             .service(auth_admin::auth_admin)
+diff --git a/src/util/db_sqlite.rs b/src/util/db_sqlite.rs
+index 5eab1f8..1206596 100644
+--- a/src/util/db_sqlite.rs
++++ b/src/util/db_sqlite.rs
+@@ -12,8 +12,12 @@ pub fn update_all(pastas: &[Pasta]) {
+ }
+ 
+ pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
+-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+-        .expect("Failed to open SQLite database!");
++    let sqlite_db = ARGS
++        .sqlite_db
++        .as_ref()
++        .unwrap_or(&format!("{}/database.sqlite", ARGS.data_dir))
++        .to_owned();
++    let conn = Connection::open(sqlite_db).expect("Failed to open SQLite database!");
+ 
+     conn.execute(
+         "
+@@ -94,8 +98,12 @@ pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
+ }
+ 
+ pub fn select_all_from_db() -> Vec<Pasta> {
+-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+-        .expect("Failed to open SQLite database!");
++    let sqlite_db = ARGS
++        .sqlite_db
++        .as_ref()
++        .unwrap_or(&format!("{}/database.sqlite", ARGS.data_dir))
++        .to_owned();
++    let conn = Connection::open(sqlite_db).expect("Failed to open SQLite database!");
+ 
+     conn.execute(
+         "
+@@ -167,8 +175,12 @@ pub fn select_all_from_db() -> Vec<Pasta> {
+ }
+ 
+ pub fn insert(pasta: &Pasta) {
+-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+-        .expect("Failed to open SQLite database!");
++    let sqlite_db = ARGS
++        .sqlite_db
++        .as_ref()
++        .unwrap_or(&format!("{}/database.sqlite", ARGS.data_dir))
++        .to_owned();
++    let conn = Connection::open(sqlite_db).expect("Failed to open SQLite database!");
+ 
+     conn.execute(
+         "
+@@ -239,8 +251,12 @@ pub fn insert(pasta: &Pasta) {
+ }
+ 
+ pub fn update(pasta: &Pasta) {
+-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+-        .expect("Failed to open SQLite database!");
++    let sqlite_db = ARGS
++        .sqlite_db
++        .as_ref()
++        .unwrap_or(&format!("{}/database.sqlite", ARGS.data_dir))
++        .to_owned();
++    let conn = Connection::open(sqlite_db).expect("Failed to open SQLite database!");
+ 
+     conn.execute(
+         "UPDATE pasta SET
+@@ -285,11 +301,15 @@ pub fn update(pasta: &Pasta) {
+ }
+ 
+ pub fn delete_by_id(id: u64) {
+-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+-        .expect("Failed to open SQLite database!");
++    let sqlite_db = ARGS
++        .sqlite_db
++        .as_ref()
++        .unwrap_or(&format!("{}/database.sqlite", ARGS.data_dir))
++        .to_owned();
++    let conn = Connection::open(sqlite_db).expect("Failed to open SQLite database!");
+ 
+     conn.execute(
+-        "DELETE FROM pasta 
++        "DELETE FROM pasta
+         WHERE id = ?1;",
+         params![id],
+     )

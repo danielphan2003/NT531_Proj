@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: microbin
+    app: microbin-replica-app
+    region: hcm
+  name: microbin-replica-deploy
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: microbin
+      app: microbin-replica-app
+      region: hcm
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        service: microbin
+        app: microbin-replica-app
+        region: hcm
+    spec:
+      terminationGracePeriodSeconds: 0
+      volumes:
+        - name: litefs-data
+          hostPath:
+            path: /data/litefs
+        - name: microbin-data
+          hostPath:
+            path: /data/microbin
+        - name: microbin-config
+          configMap:
+            name: microbin-config
+      initContainers:
+        - name: wait-for-primary-coord
+          image: stefanevinance/wait-for-200
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - >
+              set -x;
+              while [ $(curl -sw '%{http_code}' "http://microbin-primary-svc:20202/info" -o /dev/null) -ne 200 ]; do
+                sleep 15;
+              done
+      containers:
+        - name: microbin-replica
+          image: localhost/microbin-litefs
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: microbin-http
+              protocol: TCP
+            - containerPort: 20202
+              name: microbin-coord
+              protocol: TCP
+          env:
+            - name: MICROBIN_SQLITE_DB
+              value: /litefs/database.sqlite
+            - name: PRIMARY_URL
+              value: http://microbin-primary-svc:20202
+            - name: IS_PRIMARY
+              value: "false"
+          envFrom:
+            - configMapRef:
+                name: microbin-config
+          volumeMounts:
+            - name: litefs-data
+              mountPath: /var/lib/litefs
+            - name: microbin-data
+              mountPath: /microbin_data
+            - name: microbin-config
+              mountPath: /etc/litefs.yml
+              subPath: litefs.yml
+          securityContext:
+            capabilities:
+              add: ["SYS_ADMIN"]
+          resources:
+            limits:
+              squat.ai/fuse: 1
+              memory: 256Mi
+              cpu: 1000m
+            requests:
+              memory: 128Mi
+              cpu: 500m
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: microbin-http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: microbin-http
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - minikube-m01

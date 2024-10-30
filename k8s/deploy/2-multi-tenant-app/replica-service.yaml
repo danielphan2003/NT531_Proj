@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: microbin
+  name: microbin-replica-svc
+  namespace: default
+spec:
+  ports:
+    - name: "8080"
+      port: 8080
+      targetPort: microbin-http
+  selector:
+    service: microbin
+    app: microbin-replica-app
+status:
+  loadBalancer: {}
